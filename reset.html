@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>重置密码 · 心意管家</title>
+<!--
+  重置密码落地页（静态托管，供 Supabase 恢复邮件跳转）：
+  - 新版 PKCE 恢复链接形如 ?code=xxx → exchangeCodeForSession 换会话后改密码；
+  - 旧版隐式流链接形如 #access_token=xxx&type=recovery → setSession 后改密码；
+  - 无 code 直接访问 → 提示链接无效/已过期。
+  anon key 为公开客户端密钥（数据由 RLS 保护），可安全嵌入。
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --paper: #ECEFE4;  /* 纸 */
+    --moss: #31513D;   /* 苔 */
+    --moss-deep: #24402F;
+    --gold: #B08D42;   /* 鎏金 */
+    --ink: #33382E;    /* 墨 */
+    --ink-soft: #6B7063;
+    --card: #F7F6EE;
+    --line: #D8DACC;
+    --danger: #A5483B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 380px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 34px 28px 26px;
+    box-shadow: 0 10px 30px rgba(49, 81, 61, 0.10);
+  }
+  .mark {
+    width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 50%;
+    border: 2px dashed var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+  }
+  h1 {
+    text-align: center;
+    font-family: "KaiTi", "STKaiti", "Kaiti SC", serif;
+    font-weight: 500; letter-spacing: 3px; font-size: 22px; color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .sub {
+    text-align: center; font-size: 13px; color: var(--ink-soft); letter-spacing: 1px;
+    margin-bottom: 26px; line-height: 1.7;
+  }
+  label {
+    display: block; font-size: 12.5px; color: var(--ink-soft);
+    letter-spacing: 1px; margin: 0 0 6px;
+  }
+  input {
+    width: 100%; padding: 12px 14px; margin-bottom: 14px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font-size: 15px; color: var(--ink); outline: none;
+  }
+  input:focus { border-color: var(--moss); }
+  button {
+    width: 100%; margin-top: 4px; padding: 14px; border: none; border-radius: 12px;
+    background: var(--moss); color: #F4F6EC;
+    font-family: "KaiTi", "STKaiti", "Kaiti SC", serif;
+    font-size: 16px; letter-spacing: 4px; cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:hover { opacity: .88; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg {
+    margin-top: 16px; padding: 11px 14px; border-radius: 10px;
+    font-size: 13px; line-height: 1.7; display: none; text-align: center;
+  }
+  .msg.error { display: block; background: #F5E7E3; color: var(--danger); }
+  .msg.ok { display: block; background: #E5EFE6; color: var(--moss-deep); }
+  .tip { text-align: center; font-size: 12px; color: var(--ink-soft); margin-top: 20px; line-height: 1.8; }
+  .back { color: var(--moss); cursor: pointer; }
+  .open-app {
+    display: none; width: 100%; margin-top: 10px; padding: 13px;
+    background: transparent; color: var(--moss); border: 1.5px solid var(--moss);
+    border-radius: 12px; font-size: 14px; letter-spacing: 2px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">🪷</div>
+    <h1>重置密码</h1>
+    <p class="sub">为你的心意管家账号<br/>设置一个新密码</p>
+
+    <form id="pwdForm">
+      <label for="pwd">新密码</label>
+      <input id="pwd" type="password" placeholder="至少 6 位" autocomplete="new-password" />
+      <label for="pwd2">确认新密码</label>
+      <input id="pwd2" type="password" placeholder="再输入一次" autocomplete="new-password" />
+      <button id="submitBtn" type="submit">确 认 重 置</button>
+      <button type="button" class="open-app" id="openAppBtn">打 开 心 意 管 家</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+    <p class="tip" id="tip"></p>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = 'https://qftpinzgdvrbdokutlwa.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdHBpbnpnZHZyYmRva3V0bHdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MzA1NDEsImV4cCI6MjEwODUwNjU0MX0.mfRWC5Gex6OSTqezR-S1PkO5ARl2BcZGKxF9j2LBzqE';
+  var APP_SCHEME = 'rnapp://'; // 与 rnapp/app.json 的 scheme 一致
+
+  var form = document.getElementById('pwdForm');
+  var pwd = document.getElementById('pwd');
+  var pwd2 = document.getElementById('pwd2');
+  var btn = document.getElementById('submitBtn');
+  var openAppBtn = document.getElementById('openAppBtn');
+  var msg = document.getElementById('msg');
+  var tip = document.getElementById('tip');
+
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+
+  function showMsg(kind, text) {
+    msg.className = 'msg ' + kind;
+    msg.textContent = text;
+  }
+
+  function parseParams() {
+    // PKCE：?code=xxx（新版恢复链接）
+    var q = new URLSearchParams(window.location.search);
+    var code = q.get('code');
+    // 旧版隐式流：#access_token=xxx&type=recovery
+    var hash = {};
+    var h = window.location.hash.replace(/^#/, '');
+    h.split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      if (i > -1) hash[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1));
+    });
+    return { code: code, hash: hash };
+  }
+
+  // 校验链接有效性：无 code 也无可恢复会话时直接提示
+  var params = parseParams();
+  if (!params.code && !params.hash.access_token) {
+    form.style.display = 'none';
+    tip.textContent = '这个链接缺少有效参数，可能已失效。';
+    showMsg('error', '重置链接无效或已过期，请回 App 重新发起「忘记密码」。');
+    return;
+  }
+
+  // 拿到当前会话（PKCE 换 session，或旧版 hash 恢复）
+  client.auth.getSession().then(function (res) {
+    var session = res.data.session;
+    if (params.code) {
+      return client.auth.exchangeCodeForSession(params.code);
+    }
+    if (params.hash.access_token) {
+      return client.auth.setSession({
+        access_token: params.hash.access_token,
+        refresh_token: params.hash.refresh_token || ''
+      });
+    }
+    return { data: { session: session } };
+  }).then(function (res) {
+    if (res && res.data && res.data.session) {
+      tip.textContent = '已就绪，请设置新密码。';
+    } else {
+      form.style.display = 'none';
+      showMsg('error', '未能验证你的身份，链接可能已失效，请回 App 重新发起。');
+    }
+  }).catch(function () {
+    form.style.display = 'none';
+    showMsg('error', '未能验证你的身份，链接可能已失效，请回 App 重新发起。');
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = pwd.value;
+    if (v.length < 6) { showMsg('error', '密码至少 6 位。'); return; }
+    if (v !== pwd2.value) { showMsg('error', '两次输入的密码不一致。'); return; }
+
+    btn.disabled = true;
+    showMsg('ok', '正在重置…');
+
+    client.auth.getSession().then(function () {
+      return client.auth.updateUser({ password: v });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      form.style.display = 'none';
+      openAppBtn.style.display = 'block';
+      showMsg('ok', '密码已重置成功，请回到 App 用新密码登录。');
+      tip.textContent = '登录后即可继续使用心意管家。';
+    }).catch(function (err) {
+      btn.disabled = false;
+      showMsg('error', (err && err.message) || '重置失败，请稍后重试。');
+    });
+  });
+
+  // 成功后尝试跳回 App（支持则打开，否则保留提示）
+  openAppBtn.addEventListener('click', function () {
+    window.location.href = APP_SCHEME;
+  });
+})();
+</script>
+</body>
+</html>
