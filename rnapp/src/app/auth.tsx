@@ -35,7 +35,7 @@ export default function AuthScreen() {
 
   async function handleSubmit() {
     if (!email.trim()) return Alert.alert('提示', '请填写邮箱');
-    if (!password) return Alert.alert('提示', '请填写密码');
+    if (mode !== 'forgot' && !password) return Alert.alert('提示', '请填写密码');
     if (mode === 'signup' && password.length < 6) return Alert.alert('提示', '密码至少 6 位');
 
     setSubmitting(true);

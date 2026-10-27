@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 心意管家 · 设计原型（苔绿 · 明信片版）</title>
+<link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" rel="stylesheet">
+<style>
+/* ============================================================
+   AI 心意管家 · 设计原型 v2
+   主题：「纸、墨、邮」—— 像收到一封手写明信片
+   · 亚麻绿调纸面（非奶油底）
+   · 苔藓绿墨为主强调（非陶土红）
+   · 琥珀金作邮票/金线点缀
+   · 楷体标题 + 系统无衬线正文
+   ============================================================ */
+:root{
+  --paper:#ECEFE4;        /* 亚麻绿纸底 */
+  --paper-2:#E2E7D6;      /* 纸边深一档 */
+  --card:#F7F6EE;         /* 明信片白 */
+  --card-2:#F0F0E4;       /* 明信片深一档 */
+  --ink:#33382E;          /* 墨绿黑正文 */
+  --ink-soft:#7A806E;     /* 灰绿墨 */
+  --line:#D4D8C6;         /* 细线 */
+  --line-soft:#E1E4D4;    /* 更淡线 */
+  --moss:#31513D;         /* 苔藓绿 主强调 */
+  --moss-deep:#223A2B;    /* 深苔绿 */
+  --moss-soft:#E3EADF;    /* 苔绿浅底 */
+  --gold:#B08D42;         /* 琥珀金 */
+  --gold-soft:#E2D5AE;    /* 金浅 */
+  --kai:"LXGW WenKai","LXGW WenKai Screen","Kaiti SC","STKaiti","KaiTi","DFKai-SB",serif;
+  --sans:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--sans);color:var(--ink);background:#2B2F27;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 0;
+}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+input,textarea,select{font-family:inherit;color:inherit}
+
+/* ===== 手机框 ===== */
+.phone{
+  position:relative;width:390px;height:844px;background:var(--paper);
+  border-radius:44px;overflow:hidden;box-shadow:0 40px 80px -20px rgba(0,0,0,.55);
+  flex:none;
+}
+.screen{
+  position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  display:none;padding:0 22px 96px;
+  background:
+    repeating-linear-gradient(180deg,transparent 0 46px,rgba(90,110,70,.05) 46px 47px),
+    var(--paper);
+}
+.screen.active{display:block}
+
+/* ===== 状态栏 ===== */
+.statusbar{
+  position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;
+  padding:16px 8px 10px;font-size:12px;letter-spacing:.02em;color:var(--ink);
+  background:linear-gradient(var(--paper) 70%,rgba(236,239,228,0));
+}
+.statusbar .dots{display:flex;gap:3px;align-items:center}
+.statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--ink);opacity:.85}
+.statusbar .bat{width:20px;height:10px;border:1.2px solid var(--ink);border-radius:2.5px;opacity:.85}
+
+/* ===== 通用元素 ===== */
+.kai{font-family:var(--kai)}
+.muted{color:var(--ink-soft)}
+.tag{
+  display:inline-block;font-size:11px;padding:2px 9px;border-radius:999px;
+  border:1px solid var(--line);color:var(--ink-soft);background:var(--card);letter-spacing:.03em;
+}
+.chip{
+  display:inline-block;font-size:13px;padding:7px 14px;border-radius:999px;
+  border:1px solid var(--line);color:var(--ink);background:var(--card);cursor:pointer;
+}
+.chip.on{border-color:var(--moss);color:#fff;background:var(--moss)}
+.back{
+  display:inline-flex;align-items:center;gap:2px;font-size:15px;padding:10px 4px;
+  font-family:var(--kai);
+}
+.back::before{content:"‹";font-size:20px;line-height:1}
+.btn{
+  display:block;width:100%;padding:15px;border-radius:14px;text-align:center;font-size:16px;
+  font-family:var(--kai);letter-spacing:.04em;
+}
+.btn-primary{background:var(--moss);color:#F7F6EE;box-shadow:0 6px 18px -6px rgba(49,81,61,.55)}
+.btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.section-title{
+  font-size:20px;font-family:var(--kai);letter-spacing:.06em;margin:26px 2px 12px;
+  display:flex;align-items:baseline;justify-content:space-between;
+}
+.section-title .more{font-size:12px;font-family:var(--sans);color:var(--ink-soft);letter-spacing:.02em}
+
+/* 邮票（齿孔） */
+.stamp{
+  width:46px;height:54px;flex:none;position:relative;
+  background:var(--card);transform:rotate(2deg);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:2px;
+}
+/* 用虚线 + 镂空圆点模拟齿孔 */
+.stamp::before{
+  content:"";position:absolute;inset:-1px;border:1.5px dashed var(--gold);border-radius:2px;
+}
+.stamp::after{
+  content:"";position:absolute;inset:3px;border:1px solid var(--line);
+  background:
+    radial-gradient(circle at 0 0, var(--paper) 3px, transparent 0),
+    radial-gradient(circle at 100% 0, var(--paper) 3px, transparent 0),
+    radial-gradient(circle at 0 100%, var(--paper) 3px, transparent 0),
+    radial-gradient(circle at 100% 100%, var(--paper) 3px, transparent 0);
+}
+.stamp .face{font-size:20px;z-index:1}
+
+/* 邮戳 */
+.postmark{
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1.6px dashed var(--moss);color:var(--moss);border-radius:999px;
+  font-size:11px;letter-spacing:.12em;padding:4px 10px;transform:rotate(-3deg);
+  font-family:var(--kai);
+}
+
+/* ===== 登录 ===== */
+.auth{
+  min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 26px 0;
+}
+.auth .mark{
+  width:88px;height:88px;border-radius:50%;border:2px dashed var(--gold);
+  background:var(--card);display:flex;align-items:center;justify-content:center;
+  font-size:40px;margin-bottom:20px;box-shadow:0 14px 30px -16px rgba(49,81,61,.4);
+}
+.auth h1{font-size:30px;font-weight:500;letter-spacing:.1em;color:var(--ink)}
+.auth .slogan{
+  font-size:13.5px;color:var(--ink-soft);margin-top:10px;line-height:1.8;letter-spacing:.04em;
+  font-family:var(--kai);
+}
+.auth .form{width:100%;margin-top:34px}
+.auth .field{margin-bottom:14px;text-align:left}
+.auth .field input{padding:13px 14px;font-size:15px}
+.auth .switch-line{
+  margin-top:16px;font-size:13px;color:var(--ink-soft);
+}
+.auth .switch-line button{color:var(--moss);font-family:var(--kai);font-size:14px}
+.auth .privacy-note{
+  margin-top:26px;font-size:11px;color:var(--ink-soft);line-height:1.7;letter-spacing:.02em;
+  border-top:1px dashed var(--line);padding-top:14px;width:100%;
+}
+
+/* ===== 首页 ===== */
+.hero{
+  display:flex;gap:14px;align-items:flex-start;margin-top:14px;
+  background:var(--card);
+  border:1px solid var(--line);border-radius:16px;padding:16px 15px;
+  box-shadow:0 10px 26px -14px rgba(50,60,40,.3);
+}
+.hero h1{font-size:22px;line-height:1.5;font-weight:500;letter-spacing:.05em}
+.hero .date-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.08em}
+.hero .sub{font-size:13.5px;line-height:1.7;color:var(--ink);margin-top:10px}
+
+.notice{
+  margin-top:14px;display:flex;align-items:center;gap:10px;
+  background:var(--moss);border-radius:12px;padding:12px 14px;font-size:13px;
+  color:#F3F4EC;cursor:pointer;box-shadow:0 8px 18px -8px rgba(49,81,61,.55);
+}
+.notice .bell{font-size:16px}
+.notice .arrow{margin-left:auto;font-size:12px;color:var(--gold-soft)}
+
+/* 今日心意 —— 一封待拆的明信片 */
+.envelope{
+  margin-top:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;box-shadow:0 10px 26px -14px rgba(50,60,40,.3);
+}
+.envelope .top{
+  display:flex;align-items:center;gap:10px;padding:13px 15px;
+  border-bottom:1px dashed var(--line);background:var(--card-2);
+}
+.envelope .top .who{font-size:13.5px;color:var(--ink-soft);font-family:var(--kai);letter-spacing:.04em}
+.envelope .body{padding:16px;cursor:pointer}
+.envelope .body:hover .person-name{color:var(--moss)}
+.envelope .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.envelope .person-name{font-size:26px;font-weight:500;letter-spacing:.06em;transition:color .15s}
+.envelope .occasion{font-size:13.5px;margin-top:4px;color:var(--ink-soft)}
+.envelope .day{
+  font-family:var(--kai);font-size:16px;color:var(--moss);white-space:nowrap;
+}
+.envelope .day small{font-size:11px;color:var(--ink-soft);font-family:var(--sans)}
+.envelope .preview{
+  margin-top:13px;font-size:13.5px;line-height:1.75;color:var(--ink-soft);
+  border-top:1px dashed var(--line);padding-top:11px;
+}
+.envelope .preview b{color:var(--ink);font-weight:600}
+
+/* 即将到来列表 */
+.upcoming{list-style:none;margin-top:4px}
+.upcoming li{
+  display:flex;align-items:center;gap:13px;padding:13px 2px;
+  border-bottom:1px dashed var(--line-soft);
+}
+.upcoming li:last-child{border-bottom:none}
+.upcoming .mono{
+  flex:none;width:44px;height:46px;border-radius:10px;background:var(--card);
+  border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:var(--kai);color:var(--moss);font-size:15px;line-height:1.1;
+}
+.upcoming .mono small{font-size:10px;color:var(--ink-soft);font-family:var(--sans)}
+.upcoming .who{font-size:16px;font-family:var(--kai);letter-spacing:.03em}
+.upcoming .what{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.upcoming .days{margin-left:auto;font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.upcoming .days b{color:var(--moss);font-family:var(--kai);font-size:16px;font-weight:500}
+
+.footer-note{
+  margin:22px 0 8px;text-align:center;font-size:12.5px;color:var(--gold);letter-spacing:.1em;
+  font-family:var(--kai);
+}
+
+/* ===== 心意包 ===== */
+.card-head{
+  margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.card-head .titles h2{font-size:23px;font-weight:500;letter-spacing:.06em}
+.card-head .titles .occ{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.card-head .stamp{width:50px;height:58px}
+
+.mailbody{
+  margin-top:16px;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;box-shadow:0 10px 26px -14px rgba(50,60,40,.3);overflow:hidden;
+}
+.mailbody .addr{
+  display:flex;align-items:center;justify-content:space-between;padding:13px 15px;
+  background:var(--card-2);border-bottom:1px dashed var(--line);
+}
+.mailbody .addr .to{font-size:13.5px;color:var(--ink-soft);font-family:var(--kai);letter-spacing:.04em}
+.mailbody .addr .postmark{margin-top:2px}
+.mailbody .inner{padding:16px}
+.kicker{
+  font-size:12px;color:var(--moss);letter-spacing:.16em;margin-bottom:8px;display:flex;align-items:center;gap:7px;
+}
+.kicker::before{content:"";width:16px;height:1.6px;background:var(--moss);border-radius:2px}
+.bless-card{
+  border:1px solid var(--line-soft);border-radius:12px;padding:13px 14px;margin-bottom:10px;
+  background:var(--card);position:relative;
+}
+.bless-card .txt{font-size:15.5px;line-height:1.85;font-family:var(--kai)}
+.bless-card .foot{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+.bless-card .copy{
+  font-size:12px;color:var(--moss);border:1px solid var(--moss-soft);border-radius:999px;
+  padding:3px 12px;background:var(--moss-soft);
+}
+.bless-card .copy:active{opacity:.7}
+.bless-card .n{font-size:11px;color:var(--ink-soft);font-family:var(--sans);letter-spacing:.05em}
+.swap{
+  margin-top:12px;text-align:center;font-size:13.5px;color:var(--moss);
+  border:1px dashed var(--moss);border-radius:12px;padding:9px;width:100%;
+  font-family:var(--kai);letter-spacing:.05em;background:var(--moss-soft);
+}
+
+.gift-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line-soft);border-radius:12px;padding:12px 13px;margin-bottom:10px;background:var(--card)}
+.gift-card .icon{
+  flex:none;width:40px;height:40px;border-radius:10px;background:var(--card-2);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:19px;
+}
+.gift-card .g-name{font-size:14.5px;font-family:var(--kai)}
+.gift-card .g-kw{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+.gift-card .go{
+  margin-left:auto;flex:none;font-size:12.5px;color:var(--gold);
+  border:1px solid var(--gold);border-radius:999px;padding:5px 12px;font-family:var(--kai);background:var(--card);
+}
+
+/* 贺卡 */
+.hint{
+  display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-soft);
+  background:var(--card-2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;line-height:1.6;
+}
+.hint .k{color:var(--moss);font-size:14px}
+.cardframe{
+  border-radius:14px;overflow:hidden;border:1px solid var(--line);margin:12px 0;
+  box-shadow:0 12px 24px -14px rgba(50,60,40,.35);
+}
+.cardframe .tpl{aspect-ratio:390/520;padding:22px;display:flex;flex-direction:column;justify-content:space-between}
+/* 四套模板 */
+.tpl-birthday{background:linear-gradient(160deg,#F4F0DF,#E9E3C8)}
+.tpl-birthday .deco{display:flex;justify-content:space-between;font-size:18px;color:var(--moss)}
+.tpl-birthday .card-line{height:1.5px;background:var(--gold);opacity:.75}
+.tpl-birthday .card-msg{font-family:var(--kai);font-size:19px;line-height:1.75;color:#3C4434;letter-spacing:.05em}
+.tpl-birthday .card-to{font-size:13px;color:#7A7A5E;font-family:var(--kai)}
+
+.tpl-festival{background:linear-gradient(160deg,#31513D,#223A2B);color:#F2ECDB}
+.tpl-festival .deco{display:flex;justify-content:space-between;font-size:18px;color:var(--gold-soft)}
+.tpl-festival .card-line{height:1.5px;background:var(--gold);opacity:.85}
+.tpl-festival .card-msg{font-family:var(--kai);font-size:19px;line-height:1.75;color:#F6F0E0;letter-spacing:.05em}
+.tpl-festival .card-to{font-size:13px;color:#D9CCA4;font-family:var(--kai)}
+
+.tpl-thanks{background:linear-gradient(160deg,#EEF0E8,#DDE2D4)}
+.tpl-thanks .deco{display:flex;justify-content:space-between;font-size:18px;color:var(--moss)}
+.tpl-thanks .card-line{height:1.5px;background:var(--gold);opacity:.6}
+.tpl-thanks .card-msg{font-family:var(--kai);font-size:19px;line-height:1.75;color:#3C4636;letter-spacing:.05em}
+.tpl-thanks .card-to{font-size:13px;color:#6E7662;font-family:var(--kai)}
+
+.tpl-universal{background:linear-gradient(160deg,#F7F6EE,#ECEBDD)}
+.tpl-universal .deco{display:flex;justify-content:space-between;font-size:18px;color:var(--gold)}
+.tpl-universal .card-line{height:1.5px;background:var(--moss);opacity:.4}
+.tpl-universal .card-msg{font-family:var(--kai);font-size:19px;line-height:1.75;color:#44483B;letter-spacing:.05em}
+.tpl-universal .card-to{font-size:13px;color:#7A806E;font-family:var(--kai)}
+
+.tpl-pick{display:flex;gap:8px;margin:10px 0 12px}
+.tpl-pick .p{
+  flex:1;aspect-ratio:1/1.25;border-radius:8px;border:2px solid var(--line);overflow:hidden;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;color:var(--ink-soft);
+}
+.tpl-pick .p.on{border-color:var(--moss)}
+.tpl-pick .p .sw{width:100%;height:55%;display:block}
+.tpl-pick .p .sw.sb{background:linear-gradient(160deg,#F4F0DF,#E9E3C8)}
+.tpl-pick .p .sw.sf{background:linear-gradient(160deg,#31513D,#223A2B)}
+.tpl-pick .p .sw.st{background:linear-gradient(160deg,#EEF0E8,#DDE2D4)}
+.tpl-pick .p .sw.su{background:linear-gradient(160deg,#F7F6EE,#ECEBDD)}
+
+.select-row{display:flex;align-items:center;gap:10px;font-size:13.5px;margin:10px 0}
+.select-row label{color:var(--ink-soft);flex:none}
+.select-row select{
+  flex:1;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+  font-size:13.5px;
+}
+
+/* ===== 联系人列表 ===== */
+.people-top{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.people-top h2{font-size:26px;font-weight:500;letter-spacing:.06em}
+.add-btn{
+  font-size:13px;color:var(--gold);border:1px solid var(--gold);border-radius:999px;
+  padding:6px 13px;font-family:var(--kai);background:var(--card);
+}
+.person-row{
+  display:flex;align-items:center;gap:13px;padding:14px 2px;border-bottom:1px dashed var(--line-soft);
+  cursor:pointer;
+}
+.person-row:active{background:var(--card-2)}
+.avatar{
+  flex:none;width:48px;height:48px;border-radius:50%;
+  background:var(--moss-soft);border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--kai);font-size:20px;color:var(--moss);
+}
+.person-row .p-name{font-size:18px;font-family:var(--kai);letter-spacing:.03em}
+.person-row .p-meta{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+.person-row .p-next{margin-left:auto;text-align:right;flex:none}
+.person-row .p-next .d{font-family:var(--kai);font-size:15px;color:var(--moss)}
+.person-row .p-next .w{font-size:11px;color:var(--ink-soft);margin-top:1px}
+
+/* 空状态 */
+.empty{
+  margin-top:36px;text-align:center;padding:34px 20px;border:1.5px dashed var(--line);
+  border-radius:16px;background:var(--card);
+}
+.empty .seal-icon{
+  width:70px;height:70px;margin:0 auto 16px;border-radius:50%;
+  border:2px dashed var(--moss);color:var(--moss);display:flex;align-items:center;justify-content:center;
+  font-size:28px;background:var(--moss-soft);
+}
+.empty h3{font-family:var(--kai);font-size:20px;font-weight:500;margin-bottom:8px;letter-spacing:.05em}
+.empty p{font-size:13.5px;color:var(--ink-soft);line-height:1.8}
+.empty .btn{max-width:220px;margin:18px auto 0}
+
+/* ===== 联系人详情 ===== */
+.detail-head{
+  margin-top:12px;text-align:center;padding:22px 0 4px;
+}
+.detail-head .avatar{width:72px;height:72px;font-size:30px;margin:0 auto 12px}
+.detail-head .d-name{font-size:28px;font-weight:500;letter-spacing:.08em}
+.detail-head .d-rel{margin-top:8px}
+.next-banner{
+  margin-top:18px;display:flex;align-items:center;gap:13px;
+  border:1px solid var(--line);border-radius:14px;background:var(--card);padding:13px 15px;
+  box-shadow:0 8px 20px -14px rgba(50,60,40,.3);
+}
+.next-banner .stamp{width:40px;height:48px}
+.next-banner .n-when{font-size:16px;font-family:var(--kai);letter-spacing:.04em}
+.next-banner .n-what{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+.next-banner .days{margin-left:auto;font-family:var(--kai);font-size:17px;color:var(--moss)}
+.info-block{margin-top:22px}
+.info-block .ib-title{
+  font-family:var(--kai);font-size:17px;letter-spacing:.06em;margin-bottom:10px;color:var(--ink);
+}
+.info-block .ib-item{
+  display:flex;align-items:baseline;gap:12px;padding:11px 2px;border-bottom:1px dashed var(--line-soft);
+  font-size:14px;
+}
+.info-block .ib-item .k{color:var(--ink-soft);flex:none;width:56px;font-size:12.5px}
+.info-block .ib-item .v{font-family:var(--kai);font-size:16px;letter-spacing:.03em}
+.detail-actions{display:flex;gap:10px;margin-top:24px}
+.detail-actions .btn{width:auto;flex:1;padding:13px}
+
+/* ===== 编辑表单 ===== */
+.form-block{margin-top:18px}
+.form-block .fb-title{font-family:var(--kai);font-size:17px;letter-spacing:.06em;margin-bottom:10px;color:var(--ink)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.05em}
+.field input,.field textarea{
+  width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);font-size:15px;
+}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--moss)}
+.field .req{color:var(--moss)}
+.need{color:var(--moss);font-size:11px;margin-left:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.date-row{
+  border:1px solid var(--line-soft);border-radius:11px;padding:12px;margin-bottom:10px;background:var(--card);
+}
+.date-row .type-switch{display:flex;gap:6px;margin-bottom:10px}
+.date-row .type-switch .t{
+  font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;
+}
+.date-row .type-switch .t.on{background:var(--moss);color:#fff;border-color:var(--moss)}
+.date-row .day-fields{display:flex;gap:8px}
+.date-row .day-fields input{font-size:14px;padding:9px 11px}
+.date-row .lunar-note{font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
+.add-date{
+  display:block;width:100%;padding:11px;border:1.5px dashed var(--line);border-radius:11px;
+  color:var(--ink-soft);font-size:13.5px;font-family:var(--kai);letter-spacing:.05em;
+}
+
+/* ===== 设置 ===== */
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 2px;border-bottom:1px dashed var(--line-soft);
+}
+.setting-row .s-name{font-size:15px}
+.setting-row .s-desc{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);
+  font-size:16px;color:var(--ink);display:flex;align-items:center;justify-content:center;
+}
+.stepper .val{font-family:var(--kai);font-size:16px;min-width:30px;text-align:center}
+.stepper .unit{font-size:12px;color:var(--ink-soft)}
+.switch{width:44px;height:26px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:.18s}
+.switch.on{background:var(--moss)}
+.switch::after{
+  content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.18);
+}
+.switch.on::after{left:21px}
+.platform{display:flex;flex-wrap:wrap;gap:8px}
+.privacy{
+  margin-top:24px;font-size:11.5px;color:var(--ink-soft);line-height:1.8;letter-spacing:.02em;
+  border-top:1px dashed var(--line);padding-top:16px;
+}
+.privacy b{color:var(--ink);font-weight:600}
+.logout{margin-top:18px}
+
+/* ===== 底部导航 ===== */
+.tabbar{
+  position:absolute;bottom:0;left:0;right:0;z-index:30;height:82px;
+  background:rgba(247,246,238,.96);border-top:1px solid var(--line);
+  display:flex;align-items:flex-start;justify-content:space-around;padding-top:12px;
+  backdrop-filter:blur(6px);
+}
+.tabbar button{
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;
+  color:var(--ink-soft);letter-spacing:.05em;padding:2px 14px;
+}
+.tabbar button .ico{font-size:20px;line-height:1}
+.tabbar button.on{color:var(--moss);font-family:var(--kai)}
+
+/* ===== 浮层 toast ===== */
+.toast{
+  position:absolute;left:50%;bottom:108px;transform:translate(-50%,20px);z-index:50;
+  background:var(--moss-deep);color:#F3F4EC;font-size:13.5px;padding:11px 18px;border-radius:12px;
+  opacity:0;pointer-events:none;transition:.22s;white-space:nowrap;box-shadow:0 10px 24px -8px rgba(0,0,0,.4);
+  max-width:330px;overflow:hidden;text-overflow:ellipsis;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:430px){
+  body{padding:0;background:var(--paper)}
+  .phone{width:100vw;height:100vh;border-radius:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="toast" id="toast"></div>
+
+  <!-- ============ 登录 / 注册 ============ -->
+  <section class="screen active" id="screen-auth">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+
+    <div class="auth">
+      <div class="mark">🪷</div>
+      <h1 class="kai">心意管家</h1>
+      <div class="slogan">把日子交给它，<br>把心意留给自己。</div>
+
+      <div class="form" id="auth-form">
+        <div class="field">
+          <label>邮箱</label>
+          <input type="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input type="password" placeholder="至少 6 位">
+        </div>
+        <button class="btn btn-primary" style="margin-top:6px" onclick="doLogin()">登 录</button>
+        <div class="switch-line">还没有账号？<button onclick="toggleAuthMode()">去注册</button></div>
+      </div>
+
+      <div class="privacy-note">联系人信息只用于为你本人准备心意，App 不会对外共享。</div>
+    </div>
+  </section>
+
+  <!-- ============ 首页 今日 ============ -->
+  <section class="screen" id="screen-home">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+
+    <div class="hero">
+      <div class="stamp"><span class="face">🌿</span></div>
+      <div>
+        <div class="date-line">十月　二十五</div>
+        <h1 class="kai">早安，今天有 1 份心意<br>替你备好了。</h1>
+        <div class="sub">记下的人越多，替你操的心就越多。</div>
+      </div>
+    </div>
+
+    <div class="notice" onclick="openScreen('screen-card')">
+      <span class="bell">🔔</span>
+      <span>爷爷 10月28日生日，整套心意已备好</span>
+      <span class="arrow">查看</span>
+    </div>
+
+    <div class="section-title">今日心意 <span class="more">临近 3 天，先替你想好</span></div>
+    <div class="envelope">
+      <div class="top">
+        <span class="stamp" style="width:38px;height:46px"><span class="face">🌸</span></span>
+        <span class="who">致 一位在乎的人</span>
+        <span class="tag" style="margin-left:auto">家人</span>
+      </div>
+      <div class="body" onclick="openScreen('screen-card')">
+        <div class="row">
+          <div>
+            <div class="person-name kai">爷爷</div>
+            <div class="occasion">公历生日 10月28日</div>
+          </div>
+          <div class="day">距 3 天 <small>已备好</small></div>
+        </div>
+        <div class="preview">
+          <b>心意已装进信封</b>：3 条祝福 · 3 个礼物点子 · 1 张贺卡，点开就能送出去。
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">30 天内 <span class="more">都会提前替你想起</span></div>
+    <ul class="upcoming">
+      <li onclick="openScreen('screen-card')">
+        <div class="mono">31<small>十月</small></div>
+        <div><div class="who">林小满</div><div class="what">相识纪念日</div></div>
+        <div class="days"><b>6</b> 天</div>
+      </li>
+      <li onclick="openScreen('screen-card')">
+        <div class="mono">03<small>十一月</small></div>
+        <div><div class="who">妈妈</div><div class="what">生日</div></div>
+        <div class="days"><b>9</b> 天</div>
+      </li>
+      <li onclick="openScreen('screen-card')">
+        <div class="mono">20<small>十一月</small></div>
+        <div><div class="who">爸爸</div><div class="what">生日</div></div>
+        <div class="days"><b>26</b> 天</div>
+      </li>
+    </ul>
+
+    <div class="footer-note">把日子交给它，把心意留给自己</div>
+  </section>
+
+  <!-- ============ 心意包 ============ -->
+  <section class="screen" id="screen-card">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+    <button class="back" onclick="goBack()">返回</button>
+
+    <div class="card-head">
+      <div class="titles">
+        <h2 class="kai">爷爷的生日心意</h2>
+        <div class="occ">公历生日 10月28日</div>
+      </div>
+      <div class="stamp"><span class="face">🌿</span></div>
+    </div>
+
+    <div class="mailbody">
+      <div class="addr">
+        <span class="to">致爷爷　家人</span>
+        <span class="postmark">心意已备好</span>
+      </div>
+
+      <div class="inner">
+        <div class="kicker">祝福，先说给你听</div>
+        <div class="hint" style="margin-bottom:12px"><span class="k">✦</span> 依据特征「爱养花，今年刚退休」为你写好，可换一批、可编辑。</div>
+
+        <div id="bless-list">
+          <div class="bless-card">
+            <div class="txt">爷爷，生日快乐。你今年刚退休，往后每个早晨都不用赶时间了，慢慢赏花、慢慢喝茶。这一年的菊花替你开着，愿你日子常新，身体常安。</div>
+            <div class="foot"><span class="n">第 1 条</span><button class="copy" onclick="copyText(this)">复制</button></div>
+          </div>
+          <div class="bless-card">
+            <div class="txt">生日快乐，爷爷。以前是你牵着我们走，现在换我们惦记着你。退休后的第一个生日，愿你心里亮堂，手里有花，身边有家人。</div>
+            <div class="foot"><span class="n">第 2 条</span><button class="copy" onclick="copyText(this)">复制</button></div>
+          </div>
+          <div class="bless-card">
+            <div class="txt">爷爷，生辰快乐。养花的人最懂好时光要慢慢等，你教我们的事，我们都记着。愿你这朵花，开得久，开得盛。</div>
+            <div class="foot"><span class="n">第 3 条</span><button class="copy" onclick="copyText(this)">复制</button></div>
+          </div>
+        </div>
+        <button class="swap" onclick="swapBless()">换一批祝福</button>
+
+        <div class="kicker" style="margin-top:24px">礼物，挑他喜欢的</div>
+        <div class="gift-card">
+          <div class="icon">🪴</div>
+          <div><div class="g-name">一盆好打理的秋菊</div><div class="g-kw">关键词：秋菊 盆栽</div></div>
+          <button class="go" onclick="toShop('秋菊 盆栽')">去看看</button>
+        </div>
+        <div class="gift-card">
+          <div class="icon">🧤</div>
+          <div><div class="g-name">园艺手套与修枝剪套装</div><div class="g-kw">关键词：园艺工具 套装</div></div>
+          <button class="go" onclick="toShop('园艺工具 套装')">去看看</button>
+        </div>
+        <div class="gift-card">
+          <div class="icon">📖</div>
+          <div><div class="g-name">一本闲适的园艺随笔</div><div class="g-kw">关键词：园艺 随笔 书</div></div>
+          <button class="go" onclick="toShop('园艺 随笔 书')">去看看</button>
+        </div>
+
+        <div class="kicker" style="margin-top:24px">贺卡，成品就在这里</div>
+        <div class="cardframe" id="cardframe"></div>
+        <div class="tpl-pick" id="tpl-pick"></div>
+        <div class="select-row">
+          <label>祝福语</label>
+          <select id="card-msg-select" onchange="setCardMsg(this.value)"></select>
+        </div>
+        <button class="btn btn-primary" onclick="exportCard()">导出贺卡为图片</button>
+      </div>
+    </div>
+
+    <div style="height:30px"></div>
+  </section>
+
+  <!-- ============ 联系人列表 ============ -->
+  <section class="screen" id="screen-people">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+
+    <div class="people-top">
+      <h2 class="kai">在乎的人</h2>
+      <button class="add-btn" onclick="openEdit()">＋ 记一位</button>
+    </div>
+    <div class="hint" style="margin-top:12px"><span class="k">✦</span> 最多 10 位。记下特征，心意才会贴着他本人写。</div>
+
+    <div style="margin-top:8px">
+      <div class="person-row" onclick="openPerson()">
+        <div class="avatar">爷</div>
+        <div><div class="p-name">爷爷</div><div class="p-meta">家人，爱养花，今年刚退休</div></div>
+        <div class="p-next"><div class="d">10.28</div><div class="w">生日</div></div>
+      </div>
+      <div class="person-row" onclick="openPerson(1)">
+        <div class="avatar">妈</div>
+        <div><div class="p-name">妈妈</div><div class="p-meta">家人，爱看戏剧，最近迷上广场舞</div></div>
+        <div class="p-next"><div class="d">11.03</div><div class="w">生日</div></div>
+      </div>
+      <div class="person-row" onclick="openPerson(2)">
+        <div class="avatar">爸</div>
+        <div><div class="p-name">爸爸</div><div class="p-meta">家人，喜欢钓鱼，总说戒酒</div></div>
+        <div class="p-next"><div class="d">11.20</div><div class="w">生日</div></div>
+      </div>
+      <div class="person-row" onclick="openPerson(3)">
+        <div class="avatar">满</div>
+        <div><div class="p-name">林小满</div><div class="p-meta">挚友，爱猫，做独立设计</div></div>
+        <div class="p-next"><div class="d">10.31</div><div class="w">纪念日</div></div>
+      </div>
+      <div class="person-row" onclick="openPerson(4)">
+        <div class="avatar">王</div>
+        <div><div class="p-name">王叔</div><div class="p-meta">同事，爱喝茶，常出差</div></div>
+        <div class="p-next"><div class="d">12.08</div><div class="w">生日</div></div>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
+  </section>
+
+  <!-- ============ 联系人详情 ============ -->
+  <section class="screen" id="screen-person">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+    <button class="back" onclick="goBack()">返回</button>
+
+    <div class="detail-head">
+      <div class="avatar">妈</div>
+      <div class="d-name kai">妈妈</div>
+      <div class="tag" style="margin-top:8px">家人</div>
+    </div>
+
+    <div class="next-banner">
+      <div class="stamp"><span class="face">🕯️</span></div>
+      <div>
+        <div class="n-when">11月3日 · 生日</div>
+        <div class="n-what">还有 9 天，心意会提前 3 天备好</div>
+      </div>
+      <div class="days">9 天</div>
+    </div>
+
+    <div class="info-block">
+      <div class="ib-title">关于她</div>
+      <div class="ib-item"><span class="k">生日</span><span class="v">公历 11月3日</span></div>
+      <div class="ib-item"><span class="k">特征</span><span class="v">爱看戏剧，最近迷上广场舞</span></div>
+      <div class="ib-item"><span class="k">提醒</span><span class="v">已开启</span></div>
+    </div>
+
+    <div class="detail-actions">
+      <button class="btn btn-ghost" onclick="openEdit()">编辑</button>
+      <button class="btn btn-ghost" style="color:var(--moss);border-color:var(--moss-soft)" onclick="toast('已删除，相关心意一并移除')">删除</button>
+    </div>
+    <div style="height:30px"></div>
+  </section>
+
+  <!-- ============ 编辑/添加联系人 ============ -->
+  <section class="screen" id="screen-edit">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+    <button class="back" onclick="goBack()">返回</button>
+    <h2 class="kai" style="font-size:26px;font-weight:500;letter-spacing:.06em;margin-top:8px">记一位在乎的人</h2>
+    <div class="hint" style="margin-top:12px"><span class="k">✦</span> 姓名必填，其余都可以先空着、之后再补。</div>
+
+    <div class="form-block">
+      <div class="field">
+        <label>姓名 <span class="need">必填</span></label>
+        <input placeholder="比如：妈妈 / 林小满">
+      </div>
+
+      <div class="field">
+        <label>关系 <span class="need">单选一位</span></label>
+        <div class="chips" id="rel-chips">
+          <span class="chip on">家人</span><span class="chip">恋人</span><span class="chip">挚友</span>
+          <span class="chip">好友</span><span class="chip">同事</span><span class="chip">师长</span><span class="chip">自定义…</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>特殊日子 <span class="need">可多个 · 可缺省</span></label>
+        <div id="date-rows">
+          <div class="date-row">
+            <div class="type-switch">
+              <span class="t on" data-t="solar">公历生日</span>
+              <span class="t" data-t="lunar">农历生日</span>
+              <span class="t" data-t="mem">纪念日</span>
+            </div>
+            <div class="day-fields">
+              <input class="date-val" placeholder="10月28日">
+            </div>
+            <div class="lunar-note" style="display:none">农历生日会按当年实际公历换算提醒，遇闰月以实际对应日为准。</div>
+          </div>
+        </div>
+        <button class="add-date" onclick="addDateRow()">＋ 再记一个日子</button>
+      </div>
+
+      <div class="field">
+        <label>特征描述 <span class="need">写得越细，心意越像他本人</span></label>
+        <textarea rows="3" placeholder="比如：爱养花，今年刚退休。"></textarea>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="margin-top:24px" onclick="toast('已保存，日子记下了')">保存</button>
+    <div style="height:30px"></div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section class="screen" id="screen-settings">
+    <div class="statusbar"><span>10:28</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="bat"></span></span></div>
+    <h2 class="kai" style="font-size:26px;font-weight:500;letter-spacing:.06em;margin-top:14px">设置</h2>
+
+    <div class="info-block" style="margin-top:10px">
+      <div class="setting-row">
+        <div><div class="s-name">提前几天提醒</div><div class="s-desc">全局统一，通知当日上午送达</div></div>
+        <div class="stepper">
+          <button onclick="step('days',-1)">−</button>
+          <div class="val" id="v-days">3</div>
+          <button onclick="step('days',1)">＋</button>
+          <span class="unit">天</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-name">祝福条数</div><div class="s-desc">每次备好几条，随你挑</div></div>
+        <div class="stepper">
+          <button onclick="step('count',-1)">−</button>
+          <div class="val" id="v-count">3</div>
+          <button onclick="step('count',1)">＋</button>
+          <span class="unit">条</span>
+        </div>
+      </div>
+      <div class="setting-row" style="border-bottom:none">
+        <div><div class="s-name">默认电商平台</div><div class="s-desc">「去看看」跳转的平台，随时可切</div></div>
+      </div>
+      <div class="platform" style="margin-bottom:6px">
+        <span class="chip on">淘宝</span><span class="chip">京东</span><span class="chip">拼多多</span><span class="chip">抖音电商</span>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-name">提醒总开关</div><div class="s-desc">一键关闭全部提醒</div></div>
+        <div class="switch on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-name">爷爷的提醒</div><div class="s-desc">单个联系人可单独关闭</div></div>
+        <div class="switch on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-name">妈妈 · 王叔 · 林小满…</div><div class="s-desc">共 5 位，均开启</div></div>
+      </div>
+    </div>
+
+    <div class="privacy">
+      <b>隐私承诺：</b>联系人信息只用于为你本人准备心意，App 不会对外共享，也不会上传给任何第三方。
+    </div>
+    <button class="btn btn-ghost logout" onclick="toast('已退出登录')">退出登录</button>
+    <div style="height:30px"></div>
+  </section>
+
+  <!-- ============ 底部导航 ============ -->
+  <nav class="tabbar" id="tabbar">
+    <button class="on" data-tab="home" onclick="switchTab('home')"><span class="ico">✉️</span>今日</button>
+    <button data-tab="people" onclick="switchTab('people')"><span class="ico">🫧</span>在乎的人</button>
+    <button data-tab="settings" onclick="switchTab('settings')"><span class="ico">🪶</span>我的</button>
+  </nav>
+</div>
+
+<script>
+/* ---------- 屏幕切换 ---------- */
+let historyStack = ['screen-auth'];
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById(id).scrollTop = 0;
+}
+function openScreen(id){
+  historyStack.push(id);
+  show(id);
+  const tabs = ['screen-home','screen-people','screen-settings'];
+  document.getElementById('tabbar').style.display = tabs.includes(id) ? 'flex' : 'none';
+}
+function goBack(){
+  historyStack.pop();
+  const target = historyStack[historyStack.length-1];
+  show(target);
+  document.getElementById('tabbar').style.display='flex';
+}
+function switchTab(t){
+  document.getElementById('tabbar').style.display='flex';
+  const map = {home:'screen-home', people:'screen-people', settings:'screen-settings'};
+  historyStack = [map[t]];
+  show(map[t]);
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+}
+function openPerson(i){ openScreen('screen-person'); }
+function openEdit(){ openScreen('screen-edit'); }
+
+/* ---------- 登录 / 注册 ---------- */
+let authMode = 'login';
+function toggleAuthMode(){
+  authMode = authMode==='login' ? 'register':'login';
+  const btn = document.querySelector('#auth-form .btn-primary');
+  const title = document.querySelector('.auth h1');
+  btn.textContent = authMode==='login' ? '登 录' : '注 册';
+  title.textContent = authMode==='login' ? '心意管家' : '欢迎加入';
+  toast(authMode==='login' ? '切换为登录' : '切换为注册');
+}
+function doLogin(){
+  historyStack = ['screen-home'];
+  show('screen-home');
+  document.getElementById('tabbar').style.display='flex';
+  toast('欢迎回来，心意已经替你记着');
+}
+
+/* ---------- toast ---------- */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+/* ---------- 复制祝福 ---------- */
+function copyText(btn){
+  const txt = btn.parentElement.previousElementSibling.textContent;
+  const done = ()=>{ toast('祝福已复制，去聊天软件粘贴吧'); btn.textContent='已复制'; setTimeout(()=>btn.textContent='复制',1600); };
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
+  else fallbackCopy(txt,done);
+}
+function fallbackCopy(txt, done){
+  const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ toast('复制失败，请手动选择'); }
+  document.body.removeChild(ta);
+}
+
+/* ---------- 换一批祝福 ---------- */
+const BATCHES = [
+  [
+    '爷爷，生日快乐。你今年刚退休，往后每个早晨都不用赶时间了，慢慢赏花、慢慢喝茶。这一年的菊花替你开着，愿你日子常新，身体常安。',
+    '生日快乐，爷爷。以前是你牵着我们走，现在换我们惦记着你。退休后的第一个生日，愿你心里亮堂，手里有花，身边有家人。',
+    '爷爷，生辰快乐。养花的人最懂好时光要慢慢等，你教我们的事，我们都记着。愿你这朵花，开得久，开得盛。'
+  ],
+  [
+    '爷爷，生日快乐。退休的第一年，愿你养的花都开好，喝的茶都正好，想走的路都走得动，想见的人都见得上。',
+    '生辰快乐，爷爷。日子像你院子里的花，一茬一茬地开。愿你健康硬朗，今年也给我们多留几盆好花。',
+    '爷爷，生日快乐。你教我们耐心，等花开、等人好、等日子暖。往后换我们陪你，慢慢等更多好时光。'
+  ],
+  [
+    '爷爷，生日快乐。愿你像养花一样养自己的好日子，该歇就歇，该乐就乐，身体一直硬朗。',
+    '生日快乐，爷爷。退休了，把时间还给自己：赏花、喝茶、看云，怎么舒坦怎么来。',
+    '爷爷，生辰快乐。你种的花开了又开，我们惦记你的心也一直都在。愿你岁岁平安，笑口常开。'
+  ]
+];
+let batchIdx = 0;
+function swapBless(){
+  batchIdx = (batchIdx+1) % BATCHES.length;
+  const list = document.getElementById('bless-list');
+  list.innerHTML = BATCHES[batchIdx].map((t,i)=>`
+    <div class="bless-card">
+      <div class="txt">${t}</div>
+      <div class="foot"><span class="n">第 ${i+1} 条</span><button class="copy" onclick="copyText(this)">复制</button></div>
+    </div>`).join('');
+  renderMsgSelect();
+  toast('换了一批祝福');
+}
+
+/* ---------- 礼物 ---------- */
+function toShop(kw){
+  toast(`为你打开淘宝 · 搜索「${kw}」`);
+}
+
+/* ---------- 贺卡 ---------- */
+const TEMPLATES = [
+  {key:'birthday',  cls:'tpl-birthday',  name:'生日',  deco:'🌼 🌿 🌼',  line:'', msg:''},
+  {key:'festival',  cls:'tpl-festival',  name:'节日',  deco:'🏮 ✨ 🏮',  line:'', msg:''},
+  {key:'thanks',    cls:'tpl-thanks',    name:'感谢',  deco:'✉️ 🌿 ✉️',  line:'', msg:''},
+  {key:'universal', cls:'tpl-universal', name:'通用',  deco:'🌟 ☾ 🌟',  line:'', msg:''}
+];
+let curTpl = 0;
+function renderCard(){
+  const tpl = TEMPLATES[curTpl];
+  const msg = cardMsg();
+  document.getElementById('cardframe').innerHTML = `
+    <div class="tpl ${tpl.cls}">
+      <div class="deco">${tpl.deco}</div>
+      <div class="card-line"></div>
+      <div class="card-msg">${msg}</div>
+      <div class="card-line"></div>
+      <div class="card-to">给爷爷　十月二十八日　生日</div>
+    </div>`;
+}
+function renderPick(){
+  document.getElementById('tpl-pick').innerHTML = TEMPLATES.map((t,i)=>`
+    <div class="p ${i===curTpl?'on':''}" onclick="pickTpl(${i})">
+      <span class="sw ${t.key==='birthday'?'sb':t.key==='festival'?'sf':t.key==='thanks'?'st':'su'}"></span>
+      ${t.name}
+    </div>`).join('');
+}
+function pickTpl(i){ curTpl = i; renderPick(); renderCard(); toast(`已选「${TEMPLATES[i].name}」模板`); }
+function cardMsg(){
+  const sel = document.getElementById('card-msg-select');
+  return sel ? sel.value : BATCHES[0][0];
+}
+function setCardMsg(){ renderCard(); }
+function renderMsgSelect(){
+  const sel = document.getElementById('card-msg-select');
+  sel.innerHTML = BATCHES[batchIdx].map((t,i)=>`<option value="${t}">第 ${i+1} 条 · ${t.slice(0,14)}…</option>`).join('');
+  renderCard();
+}
+function exportCard(){
+  toast('贺卡已导出为图片，保存到相册，去任何聊天软件都能发');
+}
+renderPick(); renderMsgSelect();
+
+/* ---------- 表单：关系 chips ---------- */
+document.getElementById('rel-chips').addEventListener('click', e=>{
+  const c = e.target.closest('.chip'); if(!c) return;
+  document.querySelectorAll('#rel-chips .chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on');
+  if(c.textContent.includes('自定义')) toast('可输入你的关系称呼');
+});
+
+/* ---------- 表单：日期行 ---------- */
+function addDateRow(){
+  const wrap = document.getElementById('date-rows');
+  const row = document.createElement('div');
+  row.className = 'date-row';
+  row.innerHTML = `
+    <div class="type-switch">
+      <span class="t on" data-t="solar">公历生日</span>
+      <span class="t" data-t="lunar">农历生日</span>
+      <span class="t" data-t="mem">纪念日</span>
+    </div>
+    <div class="day-fields"><input class="date-val" placeholder="10月28日"></div>
+    <div class="lunar-note" style="display:none">农历生日会按当年实际公历换算提醒，遇闰月以实际对应日为准。</div>
+    <div style="text-align:right;margin-top:8px"><button class="add-date" style="display:inline;width:auto;padding:4px 12px" onclick="this.parentElement.parentElement.remove()">删除这行</button></div>`;
+  wrap.appendChild(row);
+  bindDateRow(row);
+}
+function bindDateRow(row){
+  row.querySelectorAll('.t').forEach(t=>t.addEventListener('click',()=>{
+    row.querySelectorAll('.t').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    const note = row.querySelector('.lunar-note');
+    note.style.display = t.dataset.t==='lunar' ? 'block':'none';
+  }));
+}
+bindDateRow(document.querySelector('#date-rows .date-row'));
+
+/* ---------- 设置步进 ---------- */
+function step(kind, d){
+  const el = document.getElementById('v-'+kind);
+  const limits = {days:[1,14], count:[1,5]};
+  let v = parseInt(el.textContent)+d;
+  v = Math.max(limits[kind][0], Math.min(limits[kind][1], v));
+  el.textContent = v;
+  toast(kind==='days' ? `提醒提前 ${v} 天` : `祝福备 ${v} 条`);
+}
+document.querySelectorAll('.platform .chip').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.platform .chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on');
+  toast(`默认平台已切换为「${c.textContent}」`);
+}));
+
+/* ---------- 深链：用 #屏幕id 直接打开某个屏幕（便于演示与截图） ---------- */
+(function(){
+  const h = location.hash.replace('#','');
+  if(h && document.getElementById(h)){
+    historyStack = [h];
+    show(h);
+    const tabs = ['screen-home','screen-people','screen-settings'];
+    document.getElementById('tabbar').style.display = tabs.includes(h) ? 'flex' : 'none';
+  }
+})();
+</script>
+</body>
+</html>

@@ -9,3 +9,6 @@ Thumbs.db
 # 日志与临时文件
 *.log
 *.tmp
+
+# 本地生成：Expo Go 二维码（含局域网地址，不入库）
+expo-go-qr.png
