@@ -6,13 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/components/back-button';
 import { BlessingSection } from '@/components/blessing-section';
+import { CardPreview } from '@/components/card-preview';
 import { GiftSection } from '@/components/gift-section';
 import { useContact } from '@/hooks/contacts';
 import { generateKit, useKit } from '@/hooks/kits';
 import { ensureKitForScene } from '@/hooks/pregen';
 import { useSettings } from '@/hooks/settings';
 import { dateTypeLabel } from '@/lib/dates';
-import { cardShadow, colors, fonts, pagePadding, radius } from '@/theme';
+import { colors, fonts, pagePadding, radius } from '@/theme';
 import { GenerateKitInput } from '@/types/kit';
 
 /**
@@ -21,7 +22,7 @@ import { GenerateKitInput } from '@/types/kit';
  *   （dateId / festivalId / occasion）；
  * - 祝福区（T20：默认 3 条随设置 1~5、换一批、编辑、复制）+ 礼物区（T21：固定 3 条 + 去看看）；
  * - T19 特征缺失：祝福不生成 → 引导补特征，可跳过（礼物按关系给通用建议）；
- * - T25 完整与降级：同屏祝福 + 礼物 + 贺卡预览（贺卡 M7 占位），status='partial' 降级展示可用部分；
+ * - T25 完整与降级：同屏祝福 + 礼物 + 贺卡（M7：四套模板 + 祝福语选择 + 导出），status='partial' 降级展示可用部分；
  * - T26 按需补生成：有明确场景但 kits 表还没有 → 打开即调 ensureKitForScene 补生成（点开即见）。
  */
 export default function KitScreen() {
@@ -131,6 +132,35 @@ export default function KitScreen() {
   const regenerate = () => runGenerate({ previous_batch: kit?.blessings ?? [] });
   const skipFeatures = () => runGenerate({ skip_features: true });
 
+  // T19 修正：特征已补但旧 kit 仍是 partial（祝福为空）→ 自动重新生成一次，
+  // 避免补特征后仍误报「去补充特征」。ref 防循环 / 防重复（用户可手动「换一批」重试）。
+  const autoRegenTriggered = useRef(false);
+  useEffect(() => {
+    if (autoRegenTriggered.current) return;
+    if (generating) return;
+    if (!contact?.features?.trim()) return;
+    if (!kit || kit.status !== 'partial' || kit.blessings.length > 0) return;
+    if (!sceneForGenerate || !settings) return;
+    autoRegenTriggered.current = true;
+    setGenerating(true);
+    setGenError(null);
+    const input: GenerateKitInput = {
+      contact: {
+        id: contact.id,
+        name: contact.name,
+        relation: contact.relation,
+        features: contact.features,
+      },
+      occasion: sceneForGenerate,
+      blessing_count: settings.blessing_count,
+    };
+    generateKit(input)
+      .then(() => qc.invalidateQueries({ queryKey: ['kits', 'contact', contact.id] }))
+      .catch((e) => Alert.alert('生成失败', (e as Error).message || '心意生成失败，请稍后重试'))
+      .finally(() => setGenerating(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact, kit, sceneForGenerate, settings, qc]);
+
   // ---------- 渲染分支 ----------
   if (contactLoading) {
     return (
@@ -183,7 +213,8 @@ export default function KitScreen() {
     );
   } else if (kit) {
     const partial = kit.status === 'partial';
-    const missingFeatures = partial && kit.blessings.length === 0;
+    // 仅特征仍为空时才引导「去补充特征」；特征已补但旧 kit 未生成祝福时由上方 effect 自动重生成
+    const missingFeatures = partial && kit.blessings.length === 0 && !(contact?.features?.trim());
     body = (
       <>
         {partial && (
@@ -219,7 +250,14 @@ export default function KitScreen() {
           editable
         />
         <GiftSection gifts={kit.gift_suggestions} platform={settings?.ecommerce_platform ?? '淘宝'} />
-        <CardPreview occasion={kit.occasion_name} />
+        <CardPreview
+          contactName={contact.name}
+          occasion={kit.occasion_name}
+          festivalId={kit.festival_id}
+          blessings={kit.blessings}
+          relation={contact.relation}
+          features={contact.features}
+        />
       </>
     );
   } else {
@@ -246,22 +284,6 @@ export default function KitScreen() {
         {body}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-/** 贺卡预览（T25：M7 占位预览卡，同屏展示「祝福 + 礼物 + 贺卡」三件套） */
-function CardPreview({ occasion }: { occasion: string }) {
-  return (
-    <View style={styles.cardPreview}>
-      <Text style={styles.cpTitle}>贺卡预览</Text>
-      <View style={styles.cpCard}>
-        <View style={styles.cpStamp}>
-          <Text style={styles.cpStampFace}>🕊️</Text>
-        </View>
-        <Text style={styles.cpOccasion}>{occasion}</Text>
-        <Text style={styles.cpPlaceholder}>贺卡将在下一里程碑点亮</Text>
-      </View>
-    </View>
   );
 }
 
@@ -426,50 +448,5 @@ const styles = StyleSheet.create({
   guidancePrimaryText: {
     fontSize: 13,
     color: colors.onMoss,
-  },
-  cardPreview: {
-    marginTop: 22,
-  },
-  cpTitle: {
-    fontFamily: fonts.kai,
-    fontSize: 17,
-    letterSpacing: 2,
-    color: colors.ink,
-    marginBottom: 10,
-  },
-  cpCard: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    backgroundColor: colors.card,
-    padding: 18,
-    alignItems: 'center',
-    ...cardShadow,
-  },
-  cpStamp: {
-    width: 40,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.gold,
-    borderRadius: 2,
-    backgroundColor: colors.card2,
-    marginBottom: 10,
-  },
-  cpStampFace: {
-    fontSize: 18,
-  },
-  cpOccasion: {
-    fontFamily: fonts.kai,
-    fontSize: 20,
-    letterSpacing: 2,
-    color: colors.ink,
-  },
-  cpPlaceholder: {
-    fontSize: 12,
-    color: colors.inkSoft,
-    marginTop: 8,
   },
 });

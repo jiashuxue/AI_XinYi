@@ -17,7 +17,16 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ],
+      "package": "com.anonymous.rnapp"
     },
     "web": {
       "output": "server",
@@ -38,6 +47,13 @@
         {
           "color": "#31513D",
           "defaultChannel": "reminders"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "允许访问相册，用于保存电子贺卡图片",
+          "savePhotosPermission": "允许保存电子贺卡图片到相册"
         }
       ]
     ],
