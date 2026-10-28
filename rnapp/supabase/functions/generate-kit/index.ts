@@ -281,12 +281,12 @@ Deno.serve(async (req: Request) => {
   let giftSuggestions: GiftSuggestion[] = [];
   let status: 'ready' | 'partial' = 'ready';
 
-  if (!hasFeatures && !input.skip_features) {
-    // 特征缺失且用户未选择跳过：祝福 / 礼物都不生成，前端引导补特征
-    status = 'partial';
-  } else if (!hasFeatures && input.skip_features) {
-    // 用户选择跳过：礼物按关系给通用建议，祝福仍不生成
+  if (input.skip_features) {
+    // 用户选择跳过：不调 DeepSeek，祝福不生成，礼物按关系给通用建议（spec 11，最高优先级）
     giftSuggestions = genericGiftsByRelation(input.contact.relation);
+    status = 'partial';
+  } else if (!hasFeatures) {
+    // 特征缺失且用户未选择跳过：祝福 / 礼物都不生成，前端引导补特征
     status = 'partial';
   } else {
     // 正常路径：调 DeepSeek 生成
@@ -301,7 +301,8 @@ Deno.serve(async (req: Request) => {
       giftSuggestions = ensureThreeGifts(generated.gift_suggestions, input.contact.relation);
     } catch (e) {
       console.error('generate-kit DeepSeek 调用失败：', (e as Error).message);
-      return json({ error: '心意生成失败，请稍后重试' }, 500);
+      // 透传具体原因便于排查（message 只含 DeepSeek status 与响应片段，不含密钥）
+      return json({ error: '心意生成失败：' + (e as Error).message }, 500);
     }
   }
 

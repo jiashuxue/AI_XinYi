@@ -41,6 +41,8 @@ type Props = {
   initial?: { contact: Contact | null; dates: ContactDate[] };
   submitting: boolean;
   onSubmit: (values: { name: string; relation: string | null; features: string | null; dates: DateInput[] }) => void;
+  /** 聚焦特征描述时回调（供父组件滚动 ScrollView，避免键盘遮挡多行输入） */
+  onFocusFeatures?: () => void;
 };
 
 /**
@@ -48,7 +50,7 @@ type Props = {
  * 姓名（必填）、关系 chips（预设单选 + 自定义）、特殊日期多行（公历生日 / 农历生日 / 纪念日，
  * 生日全局互斥仅一条；农历生日展示当年对应公历）、特征描述。
  */
-export function PersonForm({ initial, submitting, onSubmit }: Props) {
+export function PersonForm({ initial, submitting, onSubmit, onFocusFeatures }: Props) {
   const [name, setName] = useState(initial?.contact?.name ?? '');
   const [relation, setRelation] = useState<string | null>(initial?.contact?.relation ?? null);
   const [customRelation, setCustomRelation] = useState('');
@@ -252,6 +254,7 @@ export function PersonForm({ initial, submitting, onSubmit }: Props) {
           multiline
           numberOfLines={3}
           textAlignVertical="top"
+          onFocus={onFocusFeatures}
         />
       </View>
 

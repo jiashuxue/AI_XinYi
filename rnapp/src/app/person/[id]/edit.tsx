@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useRef, type ElementRef } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,14 +15,19 @@ export default function EditPersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useContact(id ?? '');
   const update = useUpdateContact(id ?? '');
+  const scrollRef = useRef<ElementRef<typeof ScrollView>>(null);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <BackButton />
           <Text style={styles.title}>编辑联系人</Text>
           <View style={styles.hint}>
@@ -33,6 +39,7 @@ export default function EditPersonScreen() {
             <PersonForm
               initial={{ contact: data?.contact ?? null, dates: data?.dates ?? [] }}
               submitting={update.isPending}
+              onFocusFeatures={() => scrollRef.current?.scrollToEnd({ animated: true })}
               onSubmit={(values) =>
                 update.mutate(values, {
                   onError: (e) => Alert.alert('保存失败', e.message),

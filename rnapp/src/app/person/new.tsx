@@ -1,3 +1,4 @@
+import { useRef, type ElementRef } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,14 +13,19 @@ import { colors, fonts, pagePadding } from '@/theme';
  */
 export default function NewPersonScreen() {
   const create = useCreateContact();
+  const scrollRef = useRef<ElementRef<typeof ScrollView>>(null);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <BackButton />
           <Text style={styles.title}>记一位在乎的人</Text>
           <View style={styles.hint}>
@@ -29,6 +35,7 @@ export default function NewPersonScreen() {
 
           <PersonForm
             submitting={create.isPending}
+            onFocusFeatures={() => scrollRef.current?.scrollToEnd({ animated: true })}
             onSubmit={(values) =>
               create.mutate(values, {
                 onError: (e) => Alert.alert('保存失败', e.message), // 含 10 位上限等校验错误
