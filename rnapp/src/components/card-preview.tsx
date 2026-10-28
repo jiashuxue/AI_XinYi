@@ -69,9 +69,31 @@ function recommendTemplate(festivalId: number | null | undefined, occasion: stri
 }
 
 /**
+ * 各内置节日的差异化视觉元素（spec 6/8 的 15 个节日）：
+ * 每个节日配专属意象与配色，避免「所有节日生成同一套暖色柔光」导致风格雷同。
+ */
+const FESTIVAL_STYLE: Record<string, string> = {
+  元旦: '烟花绽放、新年钟声、喜庆红金配色',
+  情人节: '玫瑰与爱心、浪漫粉色调',
+  妇女节: '康乃馨与郁金香、温馨柔美',
+  劳动节: '春意盎然的绿意、生机勃勃',
+  母亲节: '康乃馨、温馨母爱、柔暖色调',
+  父亲节: '感恩、沉稳深蓝与暖棕配色',
+  教师节: '书籍与黑板、感恩、墨绿配色',
+  国庆节: '国旗红、烟花、喜庆',
+  感恩节: '南瓜与秋叶、金黄秋色',
+  圣诞节: '圣诞树、雪花、红绿配色',
+  春节: '红灯笼、春联、鞭炮、喜庆红金配色',
+  元宵节: '花灯、汤圆、圆月',
+  端午节: '粽子、龙舟、艾草、青绿配色',
+  中秋节: '满月、月饼、桂花、金黄配色',
+  重阳节: '菊花、登高、秋日',
+};
+
+/**
  * 按场景拼文生图 prompt（T34）：
  * - 生日 / 纪念日 / 其余：可追加「关系主题」与「特征元素」；
- * - 节日场景（festivalId 非空或 occasion 含「节日」）：只按 occasion 描述氛围，不追加关系 / 特征；
+ * - 节日场景（festivalId 非空或 occasion 含「节日」）：按 FESTIVAL_STYLE 取该节日专属意象，不追加关系 / 特征；
  * - 结尾统一加「竖版构图，无文字」，避免插画里出现乱码文字。
  */
 function buildCardImagePrompt(
@@ -91,7 +113,8 @@ function buildCardImagePrompt(
     return `温馨的纪念日贺卡插画，暖色调，柔光${relationPart}${featuresPart}${tail}`;
   }
   if (festivalId != null || occasion.includes('节日')) {
-    return `${occasion}贺卡插画，节日氛围，暖色调，柔光${tail}`;
+    const style = FESTIVAL_STYLE[occasion] ?? '节日氛围，暖色调，柔光';
+    return `${occasion}贺卡插画，${style}${tail}`;
   }
   return `温馨的贺卡插画，暖色调，柔光${relationPart}${featuresPart}${tail}`;
 }
@@ -144,12 +167,17 @@ export function CardPreview({
     }
   };
 
-  // AI 生成插画（T34）：按场景拼 prompt → 调 generate-card-image → 成功后作为贺卡背景
+  // AI 生成插画（T34）：按场景拼 prompt → 调 generate-card-image → 成功后作为贺卡背景；
+  // 已有图时点「重新生成背景」：随机追加一种风格，让重生成结果与上一张不同。
   const onGenerateImage = async () => {
     if (generatingImage) return;
     setGeneratingImage(true);
     try {
-      const prompt = buildCardImagePrompt(occasion, festivalId, relation, features);
+      let prompt = buildCardImagePrompt(occasion, festivalId, relation, features);
+      if (cardImageUrl) {
+        const styles = ['柔和水彩', '细腻插画', '温暖油画', '简约扁平插画'];
+        prompt += `，${styles[Math.floor(Math.random() * styles.length)]}风格`;
+      }
       const result = await generateCardImage(prompt);
       setCardImageUrl(result.url);
     } catch (e) {
@@ -218,7 +246,7 @@ export function CardPreview({
         disabled={generatingImage}
       >
         <Text style={[styles.imageBtnText, generatingImage && styles.imageBtnTextDisabled]}>
-          {generatingImage ? '生成插画中…' : 'AI 生成插画'}
+          {generatingImage ? '生成插画中…' : cardImageUrl ? '重新生成背景' : 'AI 生成插画'}
         </Text>
       </Pressable>
 
