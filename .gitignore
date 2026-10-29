@@ -12,3 +12,8 @@ Thumbs.db
 
 # 本地生成：Expo Go 二维码（含局域网地址，不入库）
 expo-go-qr.png
+
+# 真机 / 模拟器验证与 AI 生图测试产物（不入库）
+test_pic/
+ScreenShot_*.png
+真机验证*.png
